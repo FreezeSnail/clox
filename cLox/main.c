@@ -25,6 +25,7 @@ static void repl(){
 }
 
 static char * readFile(const char * path){
+	printf("%s\n", path);
 	FILE * file = fopen(path, "rb");
 	if(file == NULL){
 		fprintf(stderr, "Could not open file \"%s\". \n", path);
@@ -52,6 +53,7 @@ static char * readFile(const char * path){
 }
 
 static void runFile(const char* path){
+
 	char * source = readFile(path);
 	InterpretResult result = interpret(source);
 	free(source);
@@ -59,6 +61,7 @@ static void runFile(const char* path){
 	if(result == INTERPRET_COMPILE_ERROR) exit(65);
 	if(result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
+
 int main(int argc, char ** argv){
 	initVM();
 

@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -11,6 +12,10 @@
 
 //lol global
 VM vm;
+
+static Value clockNative(int argCount, Value* args) { 
+    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}    
 
 static void resetStack(){
     vm.stackTop = vm.stack;
@@ -26,7 +31,7 @@ static void runtimeError(const char * format, ...){
 
     for(int i = vm.frameCount - 1; i >= 0; i--){
         CallFrame* frame = &vm.frames[i];
-        ObjFunction* function = frame->function = frame->function;
+        ObjFunction* function = frame->function;
         //-1 due to IP is on the next instruction to be executed
         size_t instruction = frame->ip - function->chunk.code -1;
         fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
@@ -40,11 +45,21 @@ static void runtimeError(const char * format, ...){
     resetStack();
 }
 
+static void defineNative(const char* name, NativeFn function){
+    push(OBJ_VAL(copyString(name, (int)strlen(name))));          
+    push(OBJ_VAL(newNative(function)));                          
+    tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);  
+    pop();                                                       
+    pop(); 
+}
+
 void initVM(){
     resetStack();
     vm.objects = NULL;
     initTable(&vm.globals);
     initTable(&vm.strings);
+
+    defineNative("clock", clockNative);
 }
 
 void freeVM(){
@@ -77,6 +92,7 @@ static bool call(ObjFunction* function, int argCount){
         runtimeError("stack overflow");
         return false;
     }
+
     CallFrame* frame = &vm.frames[vm.frameCount++];
     frame->function = function;
     frame->ip = function->chunk.code;
@@ -91,7 +107,14 @@ static bool callValue(Value callee, int argCount){
         switch(OBJ_TYPE(callee)){
             case OBJ_FUNCTION:
                 return call(AS_FUNCTION(callee), argCount);
-
+                
+            case OBJ_NATIVE: {
+                NativeFn native = AS_NATIVE(callee);
+                Value result = native(argCount, vm.stackTop - argCount);
+                vm.stackTop -= argCount + 1;
+                push(result);
+                return true;
+            }
             default:
                 // non-Callable
                 break;
@@ -157,8 +180,6 @@ static InterpretResult run(){
             case OP_CONSTANT: {
                 Value constant = READ_CONSTANT();
                 push(constant);
-                printValue(constant);
-                printf("\n");
                 break;
             }
             case OP_NIL:      push(NIL_VAL); break; 
@@ -181,7 +202,7 @@ static InterpretResult run(){
             case OP_GET_GLOBAL:{
                 ObjString* name = READ_STRING();
                 Value value;
-                if(tableGet(&vm.globals, name, &value)){
+                if(!tableGet(&vm.globals, name, &value)){
                     runtimeError("Undefined variable '%s'.", name->chars);
                 }
                 push(value);
@@ -303,10 +324,6 @@ InterpretResult interpret(const char * source){
 
     push(OBJ_VAL(function));
     callValue(OBJ_VAL(function), 0);
-    CallFrame* frame = &vm.frames[vm.frameCount++];
-    frame->function = function;
-    frame->ip = function->chunk.code;
-    frame->slots = vm.stack;
 
   
     return run();

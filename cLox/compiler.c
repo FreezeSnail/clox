@@ -655,8 +655,7 @@ static void ifStatement(){
 }
 
 static void printStatement(){
-    int loopStart = currentChunk()->count;
-
+    
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after value.");
     emitByte(OP_PRINT);
@@ -666,7 +665,7 @@ static void returnStatement(){
     if(current->type == TYPE_SCRIPT){
         error("Cannot return from top-level code.");
     }
-    
+
     if(match(TOKEN_SEMICOLON)){
         emitReturn();
     } else {
@@ -752,6 +751,7 @@ static void statement(){
 
 ObjFunction* compile(const char * source){
     initScanner(source);
+
     Compiler compiler;
     initCompiler(&compiler, TYPE_SCRIPT);
     
@@ -765,6 +765,6 @@ ObjFunction* compile(const char * source){
         declaration();
     }
     
-    ObjFunction * function = endCompiler();
+    ObjFunction* function = endCompiler();
     return parser.hadError ? NULL : function;
 }
