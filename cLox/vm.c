@@ -62,7 +62,7 @@ void initVM(){
     vm.grayCapacity = 0;
     vm.grayStack = NULL;
     vm.bytesAllocated =0;
-    vm.nextGX = 1024 * 1024;
+    vm.nextGC = 1024 * 1024;
 
     initTable(&vm.globals);
     initTable(&vm.strings);
